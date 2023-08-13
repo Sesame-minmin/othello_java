@@ -26,12 +26,14 @@ public class Main extends JPanel {
 	public static final int NONE = 0;
 	public static final int PLAYER1 = 1;//黒
 	public static final int PLAYER2 = 2;//白
+	public static final int NEXTSTONE = 3;//候補地のこと
+	public static final int DROW = 4;
 	public static final int [] DIRECTIONS= {-1,0,1};
 
 	// modeling game board
 	int [][] isBoard = new int[N][N];// one of 0,1,2,3
-	int gameColor = 1; //1=黒からスタート
-	int winner = NONE;  // one of NONE, PLAYER1, PLAYER2
+	int gameColor = PLAYER1; //1=黒からスタート
+	int winner = NONE;  // one of NONE, PLAYER1, PLAYER2,DROW
 
 	public Main() {
 		setNewBoard();
@@ -49,21 +51,15 @@ public class Main extends JPanel {
 						drawColor(x, y, g);
 					}
 				}
-				drawString(g,"黒："+Arrays.stream(isBoard)
-	            .flatMapToInt(Arrays::stream)
-	            .map(cell -> cell == PLAYER1 ? 1 : 0)
-	            .sum()+"枚",1);
-				drawString(g,"白："+Arrays.stream(isBoard)
-	            .flatMapToInt(Arrays::stream)
-	            .map(cell -> cell == PLAYER2 ? 1 : 0)
-	            .sum()+"枚",2);
+				drawString(g,"黒："+countStone(PLAYER1)+"枚",1);
+				drawString(g,"白："+countStone(PLAYER2)+"枚",2);
 				if (!Arrays.stream(isBoard).flatMapToInt(Arrays::stream).anyMatch(value -> value % 3 == 0)) {
-					drawString(g, (winner == PLAYER1)?"黒":"白"+"の勝ちです",3);
+					whoWinner(g);
 				}
 				else {
 					drawString(g, "今は"+((gameColor==PLAYER1)?"黒":"白")+"の番です" ,3);
 				}
-				button.setVisible(!(Arrays.stream(isBoard).flatMapToInt(Arrays::stream).anyMatch(value -> value == 3)));
+				button.setVisible(winner==NONE&&countStone(NEXTSTONE)==0);
 			}
 		};
 		
@@ -85,7 +81,7 @@ public class Main extends JPanel {
 				int y = e.getY() / S;
 				if (!isOnBoard(x, y))
 					return;
-				if (isBoard[y][x]==3) {
+				if (isBoard[y][x]==NEXTSTONE) {
 					flipTiles(x,y);
 					setBoard(x,y,gameColor);
 					resetNext();
@@ -101,17 +97,18 @@ public class Main extends JPanel {
 		add(button,BorderLayout.SOUTH);
 	}
 
-	//ゲームを始めるためにやるやつ
+	//ゲームを始めるとき、最初の配置を置く
 	void setNewBoard() {
 		isBoard = new int[N][N];
-		//setBoard(2, 4, 3);
-		setBoard(3, 3, 1);
-		setBoard(3, 4, 2);
-		//setBoard(3, 5, 3);
-		//setBoard(4, 2, 3);
-		setBoard(4, 3, 2);
-		setBoard(4, 4, 1);
-		//setBoard(5, 3, 3);
+		gameColor=PLAYER1;
+		setBoard(2, 4, NEXTSTONE);
+		setBoard(3, 3, PLAYER1);
+		setBoard(3, 4, PLAYER2);
+		setBoard(3, 5, NEXTSTONE);
+		setBoard(4, 2, NEXTSTONE);
+		setBoard(4, 3, PLAYER2);
+		setBoard(4, 4, PLAYER1);
+		setBoard(5, 3, NEXTSTONE);
 	}
 
 	// (x, y) is on board?
@@ -176,14 +173,14 @@ public class Main extends JPanel {
 						if(dy==0&&dx==0) {
 							continue;
 						}
-						if(isOnBoard(j+dx, i+dy)&&isBoard[i+dy][j+dx]==gameColor&&isBoard[i][j]==0){
+						if(isOnBoard(j+dx, i+dy)&&isBoard[i+dy][j+dx]==gameColor&&isBoard[i][j]==NONE){
 							for (int k=1;k<7;k++) {
 								int nextY =i+dy*(k+1);
 								int nextX =j+dx*(k+1);
 								if(isOnBoard(nextX, nextY)) {
 									if (isBoard[i + dy * k][j + dx * k] == gameColor &&
 				                            isBoard[nextY][nextX] == 3 - gameColor) {
-				                            setBoard(j, i, 3);
+				                            setBoard(j, i, NEXTSTONE);
 				                        }
 								}
 							}
@@ -192,21 +189,37 @@ public class Main extends JPanel {
 				}
 			}
 		}
-		
-		
-		
 	}	
 	
+	int countStone(int color) {
+		return Arrays.stream(isBoard)
+        .flatMapToInt(Arrays::stream)
+        .map(cell -> cell == color ? 1 : 0)
+        .sum();
+	}
+	
+	void whoWinner(Graphics g){
+		if(countStone(PLAYER1)==countStone(PLAYER2)){
+			winner=DROW;
+			drawString(g,"引き分けです", 3);
+		}else if(countStone(PLAYER1)>countStone(PLAYER2)){ 
+			winner=PLAYER1;
+			drawString(g,"黒の勝ちです",3);
+		}else {
+			winner=PLAYER2;
+			drawString(g, "白の勝ちです",3);
+		}
+	}
+	
 	void drawColor(int x, int y, Graphics g) {
-		String s = (isBoard[y][x]==1) ? "●" : (isBoard[y][x]==2) ? "○":(isBoard[y][x]==3)?"*":"";
+		String s = (isBoard[y][x]==PLAYER1) ? "●" : (isBoard[y][x]==PLAYER2) ? "○":(isBoard[y][x]==NEXTSTONE)?"*":"";
 		g.drawString(s, center(s, x * S + S / 2, g),
 				middle(y * S + S / 2, g));
 	}
 	
 	void drawString(Graphics g, String msg,int num) {
 		g.setColor(Color.black);
-		g.drawString(msg, center(msg, N * S / 2, g),
-				middle(270+num*30, g));
+		g.drawString(msg, center(msg, N * S / 2, g),300+num*30);
 	}
 	
 	public static void main(String[] args) {
